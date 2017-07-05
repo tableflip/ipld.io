@@ -37,7 +37,7 @@ node_modules:
 
 install: node_modules
 	[ -d static/css ] || mkdir -p static/css && \
-	[ -d static/css ] || mkdir -p static/css
+	[ -d static/js ] || mkdir -p static/js
 
 lint: install
 	$(NPMBIN)/standard layouts && $(NPMBIN)/lessc --lint layouts/less/*
