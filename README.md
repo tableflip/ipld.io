@@ -20,6 +20,11 @@ The implementation aims to progressively enhance the content. The styling is don
 ```sh
 git clone https://github.com/ipld/website
 ```
+
+## Usage
+
+To deploy the site ipld.io, run:
+
 ```sh
 # Build out the optimised site to ./public, where you can check it locally.
 make
@@ -30,7 +35,7 @@ make deploy
 # Save your dnsimple api token as auth.token
 cat "<api token here>" > auth.token
 
-# Update the dns record for IPLD to point to the new ipfs hash.
+# Update the dns record for ipld.io to point to the new ipfs hash.
 make publish-to-domain
 ```
 
