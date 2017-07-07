@@ -7,8 +7,16 @@ NPMBIN=./node_modules/.bin
 OUTPUTDIR=public
 PIDFILE=dev.pid
 
+ifeq ($(DEBUG), true)
+	PREPEND=
+	APPEND=
+else
+	PREPEND=@
+	APPEND=1>/dev/null
+endif
+
 build: clean install lint css js minify
-	@hugo && \
+	$(PREPEND)hugo && \
 	echo "" && \
 	echo "Site built out to ./public dir"
 
@@ -28,47 +36,48 @@ help:
 	@echo '   make publish-to-domain              Update $(DOMAIN) DNS record to the ipfs hash from the last deploy  '
 	@echo '   make clean                          remove the generated files                                         '
 	@echo '                                                                                                          '
+	@echo '   DEBUG=true make [command] for increased verbosity                                                      '
 
 serve: install lint js css minify
-	hugo server
+	$(PREPEND)hugo server
 
 node_modules:
-	$(NPM) i
+	$(PREPEND)$(NPM) i $(APPEND)
 
 install: node_modules
-	[ -d static/css ] || mkdir -p static/css && \
+	$(PREPEND)[ -d static/css ] || mkdir -p static/css && \
 	[ -d static/js ] || mkdir -p static/js
 
 lint: install
-	$(NPMBIN)/standard layouts && $(NPMBIN)/lessc --lint layouts/less/*
+	$(PREPEND)$(NPMBIN)/standard layouts && $(NPMBIN)/lessc --lint layouts/less/*
 
 css: install
-	$(NPMBIN)/lessc --clean-css --autoprefix layouts/less/main.less static/css/main.css
+	$(PREPEND)$(NPMBIN)/lessc --clean-css --autoprefix layouts/less/main.less static/css/main.css $(APPEND)
 
 js: install
-	rsync layouts/js/ static/js
+	$(PREPEND)rsync layouts/js/ static/js $(APPEND)
 
-minify: install minify-js minify-img
+minify: install minify-js minify-img $(APPEND)
 
 minify-js: install
-	find static/js -name '*.js' -exec $(NPMBIN)/uglifyjs {} --compress --output {} \;
+	$(PREPEND)find static/js -name '*.js' -exec $(NPMBIN)/uglifyjs {} --compress --output {} $(APPEND) \;
 
 minify-img: install
-	find static/img -type d -exec $(NPMBIN)/imagemin {}/* --out-dir={} \;
+	$(PREPEND)find static/img -type d -exec $(NPMBIN)/imagemin {}/* --out-dir={} $(APPEND) \;
 
 dev: install css js
-	[ ! -f $(PIDFILE) ] || rm $(PIDFILE) ; \
+	$(PREPEND)[ ! -f $(PIDFILE) ] || rm $(PIDFILE) ; \
 	touch $(PIDFILE) ; \
 	$(NPMBIN)/nodemon --watch layouts/css --exec "$(NPMBIN)/lessc --clean-css --autoprefix layouts/less/main.less static/css/main.css" & echo $$! >> $(PIDFILE) ; \
 	hugo server -w & echo $$! >> $(PIDFILE)
 
 dev-stop:
-	touch $(PIDFILE) ; \
+	$(PREPEND)touch $(PIDFILE) ; \
 	[ -z "`(cat $(PIDFILE))`" ] || kill `(cat $(PIDFILE))` ; \
 	rm $(PIDFILE)
 
 deploy:
-	ipfs swarm peers >/dev/null || (echo "ipfs daemon must be online to publish" && exit 1)
+	$(PREPEND)ipfs swarm peers >/dev/null || (echo "ipfs daemon must be online to publish" && exit 1)
 	ipfs add -r -q $(OUTPUTDIR) | tail -n1 >versions/current
 	cat versions/current >>versions/history
 	@export hash=`cat versions/current`; \
@@ -81,12 +90,12 @@ deploy:
 		echo "- ipfs pin add -r /ipfs/$$hash"; \
 		echo "- make publish-to-domain"; \
 
-publish-to-domain: auth.token versions/current
-	DNSIMPLE_TOKEN=$(shell cat auth.token) \
+publish-to-domain: versions/current
+	DNSSIMPLE_TOKEN="$(shell if [ -f auth.token ]; then cat auth.token; else cat $$HOME/.protocol/dnsimple.token; fi)"; \
 	./dnslink.sh $(DOMAIN) $(shell cat versions/current)
 
 clean:
-	[ ! -d $(OUTPUTDIR) ] || rm -rf $(OUTPUTDIR) && \
+	$(PREPEND)[ ! -d $(OUTPUTDIR) ] || rm -rf $(OUTPUTDIR) && \
 	[ ! -d static/css ] || rm -rf static/css/*.css && \
 	[ ! -d static/js ] || rm -rf static/js/*.js
 
